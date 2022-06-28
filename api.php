@@ -33,7 +33,8 @@
                                 INTERMITENTE,
                                 APAGAR, 
                                 PANEL_CONTROL,
-                                BACKEND_ACTIVATION
+                                BACKEND_ACTIVATION,
+                                NVL(ENABLE, 'N') AS SIRENA_ACTIVA
                             FROM CAT_CORREDOR_SIRENA";
 
                 $stid = oci_parse($this->dbConn, $query);
@@ -42,9 +43,56 @@
                 $corredores = [];
 
                 while ($data = oci_fetch_array($stid, OCI_ASSOC)) {
-                    
+
+                    $id_corredor = $data['ID'];
+
                     $data["expand"] = false; 
-                    $data["sirenas"] = [];
+                    $data['loading'] = false;
+                    $data['enable'] = $data['SIRENA_ACTIVA'] == 'S' ? true : false;
+
+                    // Obtener las sirenas de cada corredor
+                    $query = "  SELECT
+                                    ID,
+                                    NOMBRE,
+                                    DIRECCION,
+                                    IP,
+                                    GATEWAY,
+                                    PUERTO,
+                                    ID_CORREDOR,
+                                    RELAY,
+                                    NVL(ENABLE, 'N') AS SIRENA_ACTIVA
+                                FROM CAT_SIRENAS
+                                WHERE ID_CORREDOR = '$id_corredor'";
+
+                    $stid_ = oci_parse($this->dbConn, $query);
+                    oci_execute($stid_);
+
+                    $sirenas = [];
+
+                    while ($data_ = oci_fetch_array($stid_, OCI_ASSOC)) {
+                    
+                        // Estado de la sirena
+                        $data_['estado'] = [
+                            'color' => 'green',
+                            'text' => 'En Línea'
+                        ];
+
+                        $data_['expand'] = false;
+                        $data_['loading'] = false;
+                        $data_['enable'] = $data_['SIRENA_ACTIVA'] == 'S' ? true : false;
+
+                        $sirenas [] = $data_;
+    
+                    }
+
+                    $data['sirenas'] = $sirenas;
+
+                    // Estado del corredor
+                    $data['estado'] = [
+                        'color' => 'green',
+                        'text' => 'En Línea',
+                        'result' => '10/' . count($sirenas)
+                    ];
 
                     $corredores [] = $data;
 
@@ -52,6 +100,53 @@
 
                 $this->returnResponse(SUCCESS_RESPONSE, $corredores);
                 
+            } catch (\Throwable $th) {
+                //throw $th;
+            }
+
+        }
+
+        public function estado_corredor(){
+
+            try {
+                
+                $id_corredor = $this->param['id'];
+                $estado = $this->param['estado'] ? 'S' : null;
+
+                $query = "UPDATE CAT_CORREDOR_SIRENA SET ENABLE = '$estado' WHERE ID = '$id_corredor'";
+
+                $stid = oci_parse($this->dbConn, $query);
+                oci_execute($stid);
+
+                // Actualizar 
+
+                $query = "UPDATE CAT_SIRENAS SET ENABLE = '$estado' WHERE ID_CORREDOR = '$id_corredor'";
+
+                $stid = oci_parse($this->dbConn, $query);
+                oci_execute($stid);
+
+                $this->returnResponse(SUCCESS_RESPONSE, $this->param);
+
+            } catch (\Throwable $th) {
+                
+            }
+
+        }
+
+        public function estado_sirena(){
+
+            try {
+                
+                $id = $this->param['id'];
+                $estado = $this->param['estado'] ? 'S' : null;
+
+                $query = "UPDATE CAT_SIRENAS SET ENABLE = '$estado' WHERE ID = '$id'";
+
+                $stid = oci_parse($this->dbConn, $query);
+                $result = oci_execute($stid);
+
+                $this->returnResponse(SUCCESS_RESPONSE, $result);
+
             } catch (\Throwable $th) {
                 //throw $th;
             }
@@ -83,6 +178,46 @@
 
             } catch (\Throwable $th) {
                 //throw $th;
+            }
+
+        }
+
+        public function check_connection(){
+
+            try {
+                
+                $ip = $this->param["ip"];
+
+                // exec("ping -c 1 $ip", $output, $result);
+
+                $ch = curl_init($ip);
+                curl_setopt( $ch, CURLOPT_HTTPHEADER, array("REMOTE_ADDR: $ip", "HTTP_X_FORWARDED_FOR: $ip"));
+
+                // Execute
+                $output = curl_exec($ch);
+
+                // Check if any error occured
+                if(!curl_errno($ch)) {
+
+                    $info = curl_getinfo($ch);
+                    $output = 'Took ' . $info['total_time'] . ' seconds to send a request to ' . $info['url'];
+
+                }else{
+
+                    $output = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+                    // $output = curl_getinfo($httpcode);;
+
+                }
+                // Close handle
+                curl_close($ch);
+
+                $this->returnResponse(SUCCESS_RESPONSE, $output);
+
+            } catch (\Throwable $th) {
+                
+
+
             }
 
         }
