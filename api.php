@@ -91,7 +91,7 @@
                     $data['estado'] = [
                         'color' => 'green',
                         'text' => 'En Línea',
-                        'result' => '10/' . count($sirenas)
+                        'result' =>  count($sirenas) . '/' . count($sirenas)
                     ];
 
                     $corredores [] = $data;
