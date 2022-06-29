@@ -81,6 +81,7 @@
                         $sirena['loading'] = false;
                         $sirena['sending'] = false;
                         $sirena['enable'] = $sirena['SIRENA_ACTIVA'] == 'S' ? true : false;
+                        $sirena['testing'] = true;
 
                         // Información necesario para realizar la conexión con la sirena
                         $puerto = array_key_exists('PUERTO', $sirena) ? ':' . $sirena['PUERTO'] : null;
@@ -212,33 +213,45 @@
 
             try {
                 
-                $ip = $this->param["ip"];
+                $ip = $this->param['ip'];
 
-                // exec("ping -c 1 $ip", $output, $result);
+                exec("ping -c 1 $ip", $output, $result);
 
-                $ch = curl_init($ip);
-                curl_setopt( $ch, CURLOPT_HTTPHEADER, array("REMOTE_ADDR: $ip", "HTTP_X_FORWARDED_FOR: $ip"));
+                $resultado = $output[3];
 
-                // Execute
-                $output = curl_exec($ch);
+                // Separar el resultado por coma
+                $str_resultado = explode(',', $resultado);
 
-                // Check if any error occured
-                if(!curl_errno($ch)) {
+                // Obtener solo el porcentaje de paquetes recibidos
+                $porcentaje = explode(' ', $str_resultado[2]);
 
-                    $info = curl_getinfo($ch);
-                    $output = 'Took ' . $info['total_time'] . ' seconds to send a request to ' . $info['url'];
+                // Total de datos perdidos
+                $total = intval(str_replace('%', '', $porcentaje[1]));
 
-                }else{
+                $estado = [
+                    'color' => 'green',
+                    'text' => 'En Línea',
+                    'loss' => 0,
+                    'test_message' => null
+                ];
 
-                    $output = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-                    // $output = curl_getinfo($httpcode);;
+                if ($total > 0) {
+                
+                    // No existe conexión
+                    $estado = [
+                        'color' => 'red',
+                        'text' => 'Sin conexión',
+                        'loss' => $total,
+                        'test_message' => $output[3]
+                    ];
 
                 }
-                // Close handle
-                curl_close($ch);
 
-                $this->returnResponse(SUCCESS_RESPONSE, $output);
+                $response = [
+                    'estado' => $estado
+                ];
+
+                $this->returnResponse(SUCCESS_RESPONSE, $response);
 
             } catch (\Throwable $th) {
                 
