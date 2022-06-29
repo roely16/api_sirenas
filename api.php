@@ -69,19 +69,45 @@
 
                     $sirenas = [];
 
-                    while ($data_ = oci_fetch_array($stid_, OCI_ASSOC)) {
+                    while ($sirena = oci_fetch_array($stid_, OCI_ASSOC)) {
                     
                         // Estado de la sirena
-                        $data_['estado'] = [
+                        $sirena['estado'] = [
                             'color' => 'green',
                             'text' => 'En Línea'
                         ];
 
-                        $data_['expand'] = false;
-                        $data_['loading'] = false;
-                        $data_['enable'] = $data_['SIRENA_ACTIVA'] == 'S' ? true : false;
+                        $sirena['expand'] = false;
+                        $sirena['loading'] = false;
+                        $sirena['sending'] = false;
+                        $sirena['enable'] = $sirena['SIRENA_ACTIVA'] == 'S' ? true : false;
 
-                        $sirenas [] = $data_;
+                        // Información necesario para realizar la conexión con la sirena
+                        $puerto = array_key_exists('PUERTO', $sirena) ? ':' . $sirena['PUERTO'] : null;
+                        $sirena['url'] = 'http://' . $sirena['IP'] . $puerto;
+
+                        $sirena['acciones'] = [
+                            'encender' => [
+                                'url' => $sirena['url'],
+                                'body' => [
+                                    'submit' => array_key_exists('ENCENDER', $data) ? $data['ENCENDER'] : null
+                                ]
+                            ],
+                            'intermitente' => [
+                                'url' => $sirena['url'],
+                                'body' => [
+                                    'submit' => array_key_exists('INTERMITENTE', $data) ? $data['INTERMITENTE'] : null
+                                ]
+                            ],
+                            'apagar' => [
+                                'url' => $sirena['url'],
+                                'body' => [
+                                    'submit' => array_key_exists('APAGAR', $data) ? $data['APAGAR'] : null
+                                ]
+                            ]
+                        ];
+
+                        $sirenas [] = $sirena;
     
                     }
 
