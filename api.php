@@ -216,11 +216,11 @@
                 $ip = $this->param['ip'];
 
                 exec("ping -c 1 $ip", $output, $result);
-
-                $resultado = $output[3];
+                
+                $result = $output[3];
 
                 // Separar el resultado por coma
-                $str_resultado = explode(',', $resultado);
+                $str_resultado = explode(',', $result);
 
                 // Obtener solo el porcentaje de paquetes recibidos
                 $porcentaje = explode(' ', $str_resultado[2]);
@@ -229,7 +229,7 @@
                 $total = intval(str_replace('%', '', $porcentaje[1]));
 
                 $estado = [
-                    'color' => 'green',
+                    'color' => 'red',
                     'text' => 'En Línea',
                     'loss' => 0,
                     'test_message' => null
